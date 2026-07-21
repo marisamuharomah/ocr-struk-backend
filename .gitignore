@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Database
+*.db
+*.sqlite3
+
+# Environment
+.env
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# VS Code
+.vscode/
+
+# Expo
+.expo/
