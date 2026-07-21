@@ -89,7 +89,7 @@ class EkstraksiStruk:
 
     def _format_tanggal_split(self, match):
         try:
-            groups = match.groups()
+            groups = match.groups()[:3]
             if len(groups[0]) == 4:
                 year_str, month_str, day_str = groups
             else:
@@ -166,21 +166,23 @@ class EkstraksiStruk:
     def ekstrak_jam(self, text_list):
         pola_jam = (
             r'\b'
-            r'(?:order\s+time|time|waktu|jam|tanggal)?'
-            r'[\s.:]*'
+            r'(?:order\s+time|time|waktu|jam)?'
+            r'[\s:]*'
             r'('
                 r'(?:[01]\d|2[0-3])'
-                r'[.:]'
+                r':'
                 r'[0-5]\d'
-                r'(?:[.:][0-5]\d)?'
+                r'(?:'
+                    r':'
+                    r'[0-5]\d'
+                r')?'
             r')'
             r'\b'
         )
-        
         for line in text_list:
             match = re.search(pola_jam, line, re.IGNORECASE)
             if match:
-                jam_bersih = match.group(1).replace('.', ':')
+                jam_bersih = match.group(1)
                 if len(jam_bersih) > 5:
                     jam_bersih = jam_bersih[:5]
                 return jam_bersih
