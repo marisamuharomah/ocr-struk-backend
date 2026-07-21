@@ -138,12 +138,20 @@ class EkstraksiStruk:
         )
 
         patterns = [
+            # yyyy-mm-dd
             r'(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})',
+            # dd-mm-yyyy
             r'(\d{1,2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{4})',
-            r'(\d{1,2})\s*[-/]\s*(\d{1,2})\s*[-/]\s*(\d{2})',
+            # dd-mm-yy HH:mm
+            r'(\d{1,2})[./-](\d{1,2})[./-](\d{2})[-\s]\d{2}:\d{2}(?::\d{2})?',
+            # dd-mm-yy
+            r'(\d{1,2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{2})',
+            # 10 Jul 2026
             r'(?:waktu|date|tanggal|tgl)?\s*:?\s*(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{2,4})',
+            # yyyy-mm-dd HH:mm
             r'(\d{4})[-/](\d{2})[-/](\d{2})\s+\d{2}:\d{2}(?::\d{2})?',
-            r'(\d{1,2})[-/](\d{1,2})[-/](\d{4})\s+\d{2}:\d{2}(?::\d{2})?'
+            # dd-mm-yyyy HH:mm
+            r'(\d{1,2})[-/](\d{1,2})[-/](\d{4})\s+\d{2}:\d{2}(?::\d{2})?',
         ]
         for p in patterns:
             matches = re.finditer(p, text)
@@ -185,9 +193,9 @@ class EkstraksiStruk:
             "total amount", "total", "amount", "jumlah", "amount due"
         ]
         exclude = [
-            "subtotal", "sub total","total item", "diskon", "disc", "promo", "kembali", "ppn",
+            "Subtotal", "subtotal", "sub total","total item", "diskon", "disc", "promo", "kembali", "ppn",
             "tax", "pajak", "payment", "bayar", "pembayaran", "cash", "tunai",
-            "debit", "credit", "change", "kembalian"
+            "debit", "credit", "change", "kembalian", "Net Amount",
         ]
 
         for idx, group in enumerate(grouped_lines):
