@@ -164,7 +164,7 @@ class ReportService:
 
         pdf.set_font("Arial", "", 11)
 
-        pdf.cell(100, 8, "- Saldo Awal", 0, 0)
+        pdf.cell(100, 8, "- Total Pemasukan", 0, 0)
         pdf.cell(90, 8, f": Rp {int(saldo_awal):,}", 0, 1)
 
         pdf.cell(100, 8, "- Total Pengeluaran", 0, 0)
@@ -175,7 +175,7 @@ class ReportService:
         pdf.set_font("Arial", "B", 11)
         pdf.set_fill_color(220, 255, 220)
 
-        pdf.cell(100, 10, "SISA SALDO", 0, 0, "L", True)
+        pdf.cell(100, 10, "SISA SALDO AKHIR", 0, 0, "L", True)
         pdf.cell(
             90,
             10,
