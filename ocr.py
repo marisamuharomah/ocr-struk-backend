@@ -138,20 +138,18 @@ class EkstraksiStruk:
         )
 
         patterns = [
-            # yyyy-mm-dd
-            r'(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})',
-            # dd-mm-yyyy
-            r'(\d{1,2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{4})',
-            # dd-mm-yy HH:mm
-            r'(\d{1,2})[./-](\d{1,2})[./-](\d{2})[-\s]\d{2}:\d{2}(?::\d{2})?',
-            # dd-mm-yy
-            r'(\d{1,2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{2})',
-            # 10 Jul 2026
-            r'(?:waktu|date|tanggal|tgl)?\s*:?\s*(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{2,4})',
+            # Teks Bulan dengan Jam
+            r'(?:waktu|date|tanggal|tgl)?\s*:?\s*(\d{1,2})[\s\./-]*([A-Za-z]{3,})[\s\./-]*(\d{2,4})(?:\s+\d{2}:\d{2}(?::\d{2})?)?',
             # yyyy-mm-dd HH:mm
-            r'(\d{4})[-/](\d{2})[-/](\d{2})\s+\d{2}:\d{2}(?::\d{2})?',
-            # dd-mm-yyyy HH:mm
-            r'(\d{1,2})[-/](\d{1,2})[-/](\d{4})\s+\d{2}:\d{2}(?::\d{2})?',
+            r'(\d{4})[-/](\d{1,2})[-/](\d{1,2})\s+\d{2}:\d{2}(?::\d{2})?',
+            # dd-mm-yyyy / dd-mm-yy HH:mm
+            r'(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\s*[-\s]\s*\d{2}:\d{2}(?::\d{2})?',
+            # yyyy-mm-dd / yyyy.mm.dd
+            r'(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})',
+            # dd-mm-yyyy (4 digit tahun)
+            r'(\d{1,2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{4})',
+            # dd-mm-yy (2 digit tahun)
+            r'(\d{1,2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{2})',
         ]
         for p in patterns:
             matches = re.finditer(p, text)

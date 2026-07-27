@@ -3,7 +3,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 
-# --- SCHEMA USER ---
+# SKEMA AKUN 
 class UserRegister(BaseModel):
     nama: str
     email: str 
@@ -14,11 +14,17 @@ class UserLogin(BaseModel):
     identifier: str 
     password: str = Field(..., min_length=6) 
 
+# SKEMA PROFIL
 class UserUpdateName(BaseModel):
     user_id: int
     name: str
 
-# --- SCHEMA TRANSAKSI ---
+class UpdatePassword(BaseModel):
+    user_id: int
+    old_password: str
+    new_password: str
+
+# SKEMA TRANSAKSI 
 class UpdateTransaksi(BaseModel):
     total: float = Field(..., gt=0)
     catatan: Optional[str] = None

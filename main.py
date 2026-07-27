@@ -11,7 +11,7 @@ from pdf_report import ReportService
 import calendar
 from delete import proses_hapus_transaksi 
 from fastapi.staticfiles import StaticFiles
-from schemas import UpdateTransaksi, UserRegister, UserLogin, UserUpdateName
+from schemas import UpdateTransaksi, UserRegister, UserLogin, UserUpdateName, UpdatePassword
 from sqlalchemy.orm import joinedload
 import data
 
@@ -22,7 +22,7 @@ def startup_event():
     database.init_db()
     data.data_kategori()
 
-# --- SETUP & MIDDLEWARE ---
+# SETUP & MIDDLEWARE ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -47,7 +47,7 @@ def get_db():
     finally:
         db.close()
 
-# --- ENPOINT AKUN ---
+# ENPOINT AKUN 
 @app.post("/register")
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
     clean_username = user_data.username.strip().lower()
@@ -110,6 +110,70 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     }
 
 
+# ENDPOINT DASHBOARD 
+@app.get("/stats/summary/{id_user}")
+def get_summary(id_user: int, bulan: int, tahun: int, db: Session = Depends(get_db)):
+    pemasukan = db.query(func.sum(models.Transaksi.total)).filter(
+        models.Transaksi.id_user == id_user,
+        models.Transaksi.tipe == "pemasukan",
+        models.Transaksi.bulan == bulan,
+        models.Transaksi.tahun == tahun
+    ).scalar() or 0
+
+    pengeluaran = db.query(func.sum(models.Transaksi.total)).filter(
+        models.Transaksi.id_user == id_user,
+        models.Transaksi.tipe == "pengeluaran",
+        models.Transaksi.bulan == bulan,
+        models.Transaksi.tahun == tahun
+    ).scalar() or 0
+
+    terbesar = db.query(
+        models.Kategori.nama_kategori,
+        func.sum(models.Transaksi.total).label('total')
+    ).join(models.Transaksi).filter(
+        models.Transaksi.id_user == id_user,
+        models.Transaksi.tipe == "pengeluaran",
+        models.Transaksi.bulan == bulan,
+        models.Transaksi.tahun == tahun
+    ).group_by(models.Kategori.id).order_by(func.sum(models.Transaksi.total).desc()).first()
+
+    BULAN_INDO = [
+        "", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ]
+
+    return {
+        "pemasukan": pemasukan,
+        "pengeluaran": pengeluaran,
+        "saldo_tersisa": pemasukan - pengeluaran,
+        "persentase_pakai": (pengeluaran / pemasukan * 100) if pemasukan > 0 else 0,
+        "terbesar": {
+            "kategori": terbesar[0] if terbesar else "-",
+            "total": terbesar[1] if terbesar else 0
+        },
+        "periode": f"{BULAN_INDO[bulan]} {tahun}"
+    }
+
+
+# ENDPOINT PROFIL
+@app.put("/user/update-password")
+def update_password(payload: UpdatePassword, db: Session = Depends(get_db)):
+
+    user = db.query(models.User).filter(models.User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+
+    if user.password != payload.old_password:
+        raise HTTPException(status_code=400, detail="Password lama tidak sesuai")
+
+    if len(payload.new_password.strip()) < 6:
+        raise HTTPException(status_code=400, detail="Password baru minimal 6 karakter")
+
+    user.password = payload.new_password.strip()
+    db.commit()
+
+    return {"status": "success", "message": "Password berhasil diperbarui"}
+
 @app.put("/user/update-name")
 def update_name(payload: UserUpdateName, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.id == payload.user_id).first()
@@ -123,7 +187,7 @@ def update_name(payload: UserUpdateName, db: Session = Depends(get_db)):
     return {"status": "success", "message": "Nama berhasil diperbarui", "nama": user.nama}
 
 
-# --- ENDPOINT SCAN OCR ---
+# ENDPOINT SCAN OCR 
 @app.post("/scan")
 async def scan_struk(
     id_user: int,
@@ -170,7 +234,7 @@ async def scan_struk(
     }
 
 
-# --- ENPOINT FORM VALIDASI ---
+# ENPOINT FORM VALIDASI 
 @app.post("/transaksi/konfirmasi")
 async def konfirmasi_transaksi(
     id_user: int = Form(...),
@@ -233,7 +297,7 @@ async def konfirmasi_transaksi(
     return {"status": "Sukses", "message": "Transaksi berhasil disimpan"}
 
 
-# --- ENDPOINT TRANSAKSI MANUAL ---
+# ENDPOINT TRANSAKSI MANUAL 
 @app.post("/pemasukan")
 def tambah_pemasukan(
     id_user: int, 
@@ -324,7 +388,7 @@ async def tambah_pengeluaran(
     db.commit()
     return {"status": "Sukses", "message": "Pengeluaran berhasil ditambahkan"}
 
-# --- ENDPOINT BULAN DAN TAHUN ---
+# ENDPOINT BULAN DAN TAHUN 
 @app.get("/history/{id_user}")
 def get_history(id_user: int, bulan: int, tahun: int, db: Session = Depends(get_db)):
     transaksi_list = db.query(models.Transaksi).filter(
@@ -363,7 +427,7 @@ def get_history(id_user: int, bulan: int, tahun: int, db: Session = Depends(get_
     return result
 
 
-# --- ENDPOINT HISTORY FOTO ---
+# ENDPOINT HISTORY FOTO
 @app.get("/history/images/{id_user}")
 async def history_images(id_user: int, db: Session = Depends(get_db)):
     transaksi = db.query(models.Transaksi).filter(
@@ -384,7 +448,7 @@ async def history_images(id_user: int, db: Session = Depends(get_db)):
     ]
 
 
-# --- ENDPOINT DETAIL TRANSAKSI ---
+# ENDPOINT DETAIL TRANSAKSI 
 @app.get("/transaksi/all/{id_user}")
 def get_all_transactions(id_user: int, db: Session = Depends(get_db)):
     transaksi = db.query(models.Transaksi)\
@@ -410,7 +474,7 @@ def get_all_transactions(id_user: int, db: Session = Depends(get_db)):
     ]
 
 
-# --- ENDPOINT UPDATE TRANSAKSI ---
+# ENDPOINT UPDATE TRANSAKSI 
 @app.put("/transaksi/{id_tx}")
 def update_transaksi(id_tx: int, data: UpdateTransaksi, db: Session = Depends(get_db)):
     tx = db.query(models.Transaksi).filter(models.Transaksi.id == id_tx).first()
@@ -476,57 +540,12 @@ def update_transaksi(id_tx: int, data: UpdateTransaksi, db: Session = Depends(ge
     return {"message": "Transaksi berhasil diupdate"}
 
 
-# --- ENDPOINT HAPUS TRANSAKSI ---
+# ENDPOINT HAPUS TRANSAKSI 
 @app.delete("/transaksi/{id_tx}")
 def hapus_transaksi(id_tx: int, db: Session = Depends(get_db)):
     return proses_hapus_transaksi(id_tx, db)
 
-
-# --- ENDPOINT DASHBOARD ---
-@app.get("/stats/summary/{id_user}")
-def get_summary(id_user: int, bulan: int, tahun: int, db: Session = Depends(get_db)):
-    pemasukan = db.query(func.sum(models.Transaksi.total)).filter(
-        models.Transaksi.id_user == id_user,
-        models.Transaksi.tipe == "pemasukan",
-        models.Transaksi.bulan == bulan,
-        models.Transaksi.tahun == tahun
-    ).scalar() or 0
-
-    pengeluaran = db.query(func.sum(models.Transaksi.total)).filter(
-        models.Transaksi.id_user == id_user,
-        models.Transaksi.tipe == "pengeluaran",
-        models.Transaksi.bulan == bulan,
-        models.Transaksi.tahun == tahun
-    ).scalar() or 0
-
-    terbesar = db.query(
-        models.Kategori.nama_kategori,
-        func.sum(models.Transaksi.total).label('total')
-    ).join(models.Transaksi).filter(
-        models.Transaksi.id_user == id_user,
-        models.Transaksi.tipe == "pengeluaran",
-        models.Transaksi.bulan == bulan,
-        models.Transaksi.tahun == tahun
-    ).group_by(models.Kategori.id).order_by(func.sum(models.Transaksi.total).desc()).first()
-
-    BULAN_INDO = [
-        "", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-    ]
-
-    return {
-        "pemasukan": pemasukan,
-        "pengeluaran": pengeluaran,
-        "saldo_tersisa": pemasukan - pengeluaran,
-        "persentase_pakai": (pengeluaran / pemasukan * 100) if pemasukan > 0 else 0,
-        "terbesar": {
-            "kategori": terbesar[0] if terbesar else "-",
-            "total": terbesar[1] if terbesar else 0
-        },
-        "periode": f"{BULAN_INDO[bulan]} {tahun}"
-    }
-
-# --- ENDPOINT REKAP KATEGORI ---
+# ENDPOINT REKAP KATEGORI 
 @app.get("/stats/categories/{id_user}")
 def get_stats_categories(id_user: int, bulan: int, tahun: int, db: Session = Depends(get_db)):
     results = db.query(
@@ -549,7 +568,7 @@ def get_stats_categories(id_user: int, bulan: int, tahun: int, db: Session = Dep
     }
     return [{"kategori": nama_kategori.get(r[0], "Lainnya"), "total": r[1]} for r in results]
 
-# --- ENDPOINT LAPORAN PDF ---
+# ENDPOINT LAPORAN PDF 
 @app.get("/export-pdf/{id_user}")
 def export_pdf(id_user: int, bulan: int, tahun: int, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.id == id_user).first()
