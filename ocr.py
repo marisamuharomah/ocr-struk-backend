@@ -58,35 +58,33 @@ class EkstraksiStruk:
 
         return grouped
 
+    import re
+
+
     def _parse_rupiah_to_int(self, text):
         if not text:
             return None
 
-        t = (
-            text.lower()
-            .replace('o', '0')
-            .replace('i', '1')
-            .replace('l', '1')
-            .replace('s', '5')
-            .replace('b', '8')
-        )
+        # Koreksi kesalahan pembacaan karakter OCR (o->0, i/l->1, s->5, b->8)
+        corrections = str.maketrans({"o": "0", "i": "1", "l": "1", "s": "5", "b": "8"})
+        t = text.lower().translate(corrections)
 
-        match = re.search(r'(\d[\d.,]*)', t)
+        # Cari pola angka yang diawali dengan digit
+        match = re.search(r"(\d[\d.,]*)", t)
         if not match:
             return None
 
-        raw = match.group(1)
-        raw = re.sub(r'[.,]00$', '', raw)
-        digits = re.sub(r'[^\d]', '', raw)
+        # Buang nominal perak (,00 atau .00 di akhir) dan ambil hanya karater digit
+        raw = re.sub(r"[.,]00$", "", match.group(1))
+        digits = re.sub(r"\D", "", raw)  
+
+        # Konversi ke integer dan validasi rentang nominal transaksi
         try:
             val = int(digits)
-            if 100 <= val <= 50000000:
-                return val
-        except:
+            return val if 100 <= val <= 50_000_000 else None
+        except ValueError:
             return None
-
-        return None
-
+    
     def _format_tanggal_split(self, match):
         try:
             groups = match.groups()[:3]
@@ -124,18 +122,17 @@ class EkstraksiStruk:
             'pengukuhan'
         ])
 
+    import re
+
+
     def _proses_tanggal_raw(self, text):
-        text = (
-            text.lower()
-            .replace('|', '/')
-            .replace('\\', '/')
-            .replace('order time', 'tanggal')
-            .replace('order date', 'tanggal')
-            .replace('order tanggal', 'tanggal')
-            .replace('tgl.', 'tgl')
-            .replace('tanggal:', 'tanggal')
-            .replace('tgl:', 'tgl')
-        )
+        text = text.lower()
+        # Ubah '|' dan '\' menjadi '/'
+        text = re.sub(r"[|\\]", "/", text)
+        # Ubah 'order time', 'order date', 'order tanggal', dan 'tanggal:' menjadi 'tanggal'
+        text = re.sub(r"order\s+(time|date|tanggal)|tanggal:", "tanggal", text)
+        # Hapus tanda baca setelah 'tgl'
+        text = re.sub(r"tgl[.:]", "tgl", text)
 
         patterns = [
             # Teks Bulan dengan Jam

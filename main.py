@@ -432,8 +432,10 @@ def get_history(id_user: int, bulan: int, tahun: int, db: Session = Depends(get_
 async def history_images(id_user: int, db: Session = Depends(get_db)):
     transaksi = db.query(models.Transaksi).filter(
         models.Transaksi.id_user == id_user,
-        models.Transaksi.foto_path != None
+        models.Transaksi.foto_path != None,
+        models.Transaksi.foto_path != ""
     ).all()
+    
     return [
         {
             "id": item.id,
@@ -441,12 +443,11 @@ async def history_images(id_user: int, db: Session = Depends(get_db)):
             "bulan": item.bulan,
             "tahun": item.tahun,
             "total": item.total,
-            "created_at": item.created_at,
-            "foto_path": item.foto_path
+            "created_at": item.created_at.isoformat() if hasattr(item, 'created_at') and item.created_at else None,
+            "foto_path": f"/static/{item.foto_path.lstrip('/')}" if item.foto_path else None
         }
         for item in transaksi
     ]
-
 
 # ENDPOINT DETAIL TRANSAKSI 
 @app.get("/transaksi/all/{id_user}")
