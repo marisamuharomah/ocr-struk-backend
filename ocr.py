@@ -2,8 +2,7 @@ import os
 import re
 from paddleocr import PaddleOCR
 from datetime import datetime
-
-OCR_VERSION = "mobile-react-final-v6"
+OCR_VERSION = "mobile-react-final-v5"
 
 class EkstraksiStruk:
     def __init__(self):
@@ -13,24 +12,32 @@ class EkstraksiStruk:
             show_log=False
         )
         self.month_dict = {
-            'januari': 1, 'jan': 1, 'january' : 1,
-            'februari': 2, 'feb': 2, 'february': 2, 
-            'maret': 3, 'mar': 3, 'march': 3,
+            'januari': 1, 'jan': 1,
+            'februari': 2, 'feb': 2,
+            'maret': 3, 'mar': 3,
             'april': 4, 'apr': 4,
             'mei': 5, 'may': 5,
-            'juni': 6, 'jun': 6, 'june': 6,
-            'juli': 7, 'jul': 7, 'july': 7,
-            'agustus': 8, 'agt': 8, 'ags': 8, 'aug': 8, 'august': 8,
+            'juni': 6, 'jun': 6,
+            'juli': 7, 'jul': 7,
+            'agustus': 8, 'agt': 8, 'ags': 8,
             'september': 9, 'sep': 9,
-            'oktober': 10, 'okt': 10, 'oct': 10, 'october': 10,
+            'oktober': 10, 'okt': 10,
             'november': 11, 'nov': 11,
-            'desember': 12, 'des': 12, 'dec': 12,'december': 12,
+            'desember': 12, 'des': 12
         }
 
     def _get_angka_bulan(self, month_str):
-        month_str = month_str.lower().strip('.')
-        return self.month_dict.get(month_str) or self.month_dict.get(month_str[:3])
+        month_str = (
+            month_str
+            .lower()
+            .strip('.')
+        )
+        return (
+            self.month_dict.get(month_str)
+            or self.month_dict.get(month_str[:3])
+        )
 
+# OCR Functions
     def _group_lines(self, lines, threshold=20):
         if not lines:
             return []
@@ -58,50 +65,69 @@ class EkstraksiStruk:
 
         return grouped
 
-    import re
-
 
     def _parse_rupiah_to_int(self, text):
         if not text:
             return None
 
-        # Koreksi kesalahan pembacaan karakter OCR (o->0, i/l->1, s->5, b->8)
-        corrections = str.maketrans({"o": "0", "i": "1", "l": "1", "s": "5", "b": "8"})
-        t = text.lower().translate(corrections)
+        t = (
+            text.lower()
+            .replace('o', '0')
+            .replace('i', '1')
+            .replace('l', '1')
+            .replace('s', '5')
+            .replace('b', '8')
+        )
 
-        # Cari pola angka yang diawali dengan digit
-        match = re.search(r"(\d[\d.,]*)", t)
+        match = re.search(r'(\d[\d.,]*)', t)
         if not match:
             return None
 
-        # Buang nominal perak (,00 atau .00 di akhir) dan ambil hanya karater digit
-        raw = re.sub(r"[.,]00$", "", match.group(1))
-        digits = re.sub(r"\D", "", raw)  
-
-        # Konversi ke integer dan validasi rentang nominal transaksi
+        raw = match.group(1)
+        raw = re.sub(r'[.,]00$', '', raw)
+        digits = re.sub(r'[^\d]', '', raw)
         try:
             val = int(digits)
-            return val if 100 <= val <= 50_000_000 else None
-        except ValueError:
+            if 100 <= val <= 50000000:
+                return val
+        except:
             return None
-    
+
+        return None
+
+# OCR FORMAT TANGGAL
     def _format_tanggal_split(self, match):
         try:
-            groups = match.groups()[:3]
+            groups = match.groups()
             if len(groups[0]) == 4:
                 year_str, month_str, day_str = groups
             else:
                 day_str, month_str, year_str = groups
-            
-            day = int(day_str.lower().replace('o', '0').replace('i', '1'))
-            month_clean = month_str.lower().replace('o', '0').replace('i', '1')
+            day = int(
+                day_str
+                .lower()
+                .replace('o', '0')
+                .replace('i', '1')
+            )
+
+            month_clean = (
+                month_str
+                .lower()
+                .replace('o', '0')
+                .replace('i', '1')
+            )
 
             if month_clean.isalpha():
                 month = self._get_angka_bulan(month_clean)
             else:
                 month = int(month_clean)
 
-            year_clean = year_str.lower().replace('o', '0').replace('i', '1')
+            year_clean = (
+                year_str
+                .lower()
+                .replace('o', '0')
+                .replace('i', '1')
+            )
 
             if len(year_clean) == 2:
                 year = 2000 + int(year_clean)
@@ -109,38 +135,29 @@ class EkstraksiStruk:
                 year = int(year_clean)
 
             datetime(year, month, day)
-            return {"hari": day, "bulan": month, "tahun": year}
+            return {
+                "hari": day,
+                "bulan": month,
+                "tahun": year
+            }
         except:
             return None
 
-    def _is_tanggal_pengukuhan(self, text, match):
-        start, end = match.span()
-        window = text[max(0, start - 30):min(len(text), end + 30)]
-        return any(term in window for term in [
-            'tanggal pengukuhan',
-            'tgl pengukuhan',
-            'pengukuhan'
-        ])
-
-    import re
-
 
     def _proses_tanggal_raw(self, text):
-        text = text.lower()
-        # Ubah '|' dan '\' menjadi '/'
-        text = re.sub(r"[|\\]", "/", text)
-        # Ubah 'order time', 'order date', 'order tanggal', dan 'tanggal:' menjadi 'tanggal'
-        text = re.sub(r"order\s+(time|date|tanggal)|tanggal:", "tanggal", text)
-        # Hapus tanda baca setelah 'tgl'
-        text = re.sub(r"tgl[.:]", "tgl", text)
+        text = (
+            text.lower()
+            .replace('|', '/')
+            .replace('\\', '/')
+        )
 
         patterns = [
             # Teks Bulan dengan Jam
             r'(?:waktu|date|tanggal|tgl)?\s*:?\s*(\d{1,2})[\s\./-]*([A-Za-z]{3,})[\s\./-]*(\d{2,4})(?:\s+\d{2}:\d{2}(?::\d{2})?)?',
             # yyyy-mm-dd HH:mm
-            r'(\d{4})[-/](\d{1,2})[-/](\d{1,2})\s+\d{2}:\d{2}(?::\d{2})?',
+            r'(\d{4})-/-/\s+\d{2}:\d{2}(?::\d{2})?',
             # dd-mm-yyyy / dd-mm-yy HH:mm
-            r'(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\s*[-\s]\s*\d{2}:\d{2}(?::\d{2})?',
+            r'(\d{1,2})-/.-/.\s*[-\s]\s*\d{2}:\d{2}(?::\d{2})?',
             # yyyy-mm-dd / yyyy.mm.dd
             r'(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})',
             # dd-mm-yyyy (4 digit tahun)
@@ -151,87 +168,101 @@ class EkstraksiStruk:
         for p in patterns:
             matches = re.finditer(p, text)
             for m in matches:
-                if self._is_tanggal_pengukuhan(text, m):
-                    continue
                 res = self._format_tanggal_split(m)
                 if res:
                     return res
         return None
 
+# OCR PROSES JAM
     def ekstrak_jam(self, text_list):
-        pola_jam = (
-            r'\b'
-            r'(?:order\s+time|time|waktu|jam)?'
-            r'[\s:]*'
-            r'('
-                r'(?:[01]\d|2[0-3])'
-                r':'
-                r'[0-5]\d'
-                r'(?:'
-                    r':'
-                    r'[0-5]\d'
-                r')?'
-            r')'
-            r'\b'
-        )
+        pola_jam = r'\b(?:[01]\d|2[0-3])[.:][0-5]\d(?::[0-5]\d)?\b'
+        
         for line in text_list:
-            match = re.search(pola_jam, line, re.IGNORECASE)
+            match = re.search(pola_jam, line)
             if match:
-                jam_bersih = match.group(1)
+                jam_mentah = match.group()
+                jam_bersih = jam_mentah.replace('.', ':')
+                
                 if len(jam_bersih) > 5:
                     jam_bersih = jam_bersih[:5]
+                    
                 return jam_bersih
                 
-        return datetime.now().strftime("%H:%M")
+        now = datetime.now()
+        return now.strftime("%H:%M")
 
+# OCR PROSES TOTAL
     def _proses_total(self, grouped_lines):
         keywords = [
-            "grand total", "total belanja", "total tagihan", "total due", "total rp",
-            "total amount", "total", "amount", "jumlah", "amount due"
-        ]
-        exclude = [
-            "Subtotal", "subtotal", "sub total","total item", "diskon", "disc", "promo", "kembali", "ppn",
-            "tax", "pajak", "payment", "bayar", "pembayaran", "cash", "tunai",
-            "debit", "credit", "change", "kembalian", "Net Amount",
-        ]
+        "grand total",
+        "total",
+        "total bayar",
+        "jumlah",
+        "amount",
+        "total belanja",
+        "total pembayaran",
+        "bayar",
+        "total rp",
+        "payment",
+        "nett",
+        "net total",
+        "total due",
+        "total tagihan",
+        "ttl",
+        "total amount",]
+        exclude = ["subtotal", "sub total", "diskon", "disc", "promo", "kembali", "ppn", "tax", "pajak"]
+        kandidat_total = []
+        found_keyword = False
 
-        for idx, group in enumerate(grouped_lines):
-            line_text = " ".join(word[1][0].lower() for word in group)
-            normalized = line_text.replace("0", "o").replace("1", "l").replace("|", "l")
+        print("\n=== PROSES TOTAL ===")
+
+        for group in grouped_lines:
+            line_text = " ".join(
+                word[1][0].lower()
+                for word in group
+            )
+
+            normalized = (
+                line_text
+                .replace("0", "o")
+                .replace("1", "l")
+                .replace("|", "l")
+            )
+
+            print("LINE:", normalized)
 
             if any(e in normalized for e in exclude):
                 continue
 
             if any(k in normalized for k in keywords):
-                print(f"Ketemu baris total: {normalized}")
+                found_keyword = True
+                print("KEYWORD TOTAL:", normalized)
 
-                for candidate_group in [group, *grouped_lines[idx + 1:idx + 3]]:
-                    for word in reversed(candidate_group):
-                        val = self._parse_rupiah_to_int(word[1][0])
-                        if val:
-                            return val
+                for word in reversed(group):
+                    val = self._parse_rupiah_to_int(word[1][0])
+                    if val:
+                        kandidat_total.append(val)
 
-                for candidate_group in [group, *grouped_lines[max(0, idx - 1):idx + 1]]:
-                    for word in candidate_group:
-                        val = self._parse_rupiah_to_int(word[1][0])
-                        if val:
-                            return val
+        print("KANDIDAT:", kandidat_total)
 
-        amounts = []
-        for group in grouped_lines:
-            for word in group:
-                val = self._parse_rupiah_to_int(word[1][0])
-                if val:
-                    amounts.append(val)
+        if not found_keyword:
+            return 0
+        if not kandidat_total:
+            return 0
 
-        if amounts:
-            return max(amounts)
+        return kandidat_total[-1]
 
-        return 0
-
+# RUNNING OCR 
     def jalankan(self, image_path, bulan_fallback, tahun_fallback):
-        if not os.path.exists(image_path) or os.path.getsize(image_path) == 0:
-            return {"error": "File gambar tidak valid atau kosong"}
+        if not os.path.exists(image_path):
+            return {"error": "File tidak ditemukan"}
+
+        if os.path.getsize(image_path) == 0:
+            return {"error": "File gambar kosong"}
+
+        print("\n=== OCR IMAGE ===")
+        print(image_path)
+        print("SIZE:", os.path.getsize(image_path))
 
         try:
             result = self.ocr.ocr(image_path, cls=True)
@@ -244,10 +275,23 @@ class EkstraksiStruk:
         raw_data = result[0]
         grouped = self._group_lines(raw_data)
 
+        print("\n=== GROUPED OCR ===")
+        for idx, group in enumerate(grouped):
+            texts = []
+            for word in group:
+                texts.append(word[1][0])
+            print(f"GROUP {idx + 1}:")
+            print(texts)
+
+        print("\n=== RAW OCR TEXT ===")
         all_text_list = []
         for group in grouped:
-            line_text = " ".join(word[1][0] for word in group)
+            line_text = " ".join(
+                word[1][0]
+                for word in group
+            )
             all_text_list.append(line_text)
+            print(line_text)
 
         all_text = " ".join(all_text_list)
 
@@ -262,9 +306,14 @@ class EkstraksiStruk:
             bulan = tgl_data["bulan"]
             tahun = tgl_data["tahun"]
 
+
+        # TOTAL
         total = self._proses_total(grouped)
+
+        # JAM 
         jam = self.ekstrak_jam(all_text_list)
 
+        # HASIL
         hasil = {
             "hari": hari,
             "bulan": int(bulan),
@@ -272,4 +321,7 @@ class EkstraksiStruk:
             "jam": jam,  
             "total": total
         }
+
+        print("\n=== HASIL OCR API ===")
+        print(hasil)
         return hasil
