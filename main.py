@@ -444,7 +444,7 @@ async def history_images(id_user: int, db: Session = Depends(get_db)):
             "tahun": item.tahun,
             "total": item.total,
             "created_at": item.created_at.isoformat() if hasattr(item, 'created_at') and item.created_at else None,
-            "foto_path": f"/static/{item.foto_path.lstrip('/')}" if item.foto_path else None
+            "foto_path": item.foto_path.lstrip('/') if item.foto_path else None
         }
         for item in transaksi
     ]

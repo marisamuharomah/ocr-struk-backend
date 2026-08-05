@@ -69,7 +69,7 @@ class EkstraksiStruk:
     def _parse_rupiah_to_int(self, text):
         if not text:
             return None
-
+        # Normalisasi keyword hasil OCR
         t = (
             text.lower()
             .replace('o', '0')
@@ -210,18 +210,18 @@ class EkstraksiStruk:
         "total tagihan",
         "ttl",
         "total amount",]
-        exclude = ["subtotal", "sub total", "diskon", "disc", "promo", "kembali", "ppn", "tax", "pajak"]
+        exclude = ["subtotal", "sub total", "Cash", "diskon", "disc", "promo", "kembali", "ppn", "tax", "pajak"]
         kandidat_total = []
         found_keyword = False
 
-        print("\n=== PROSES TOTAL ===")
+        print("\nPROSES TOTAL")
 
         for group in grouped_lines:
             line_text = " ".join(
                 word[1][0].lower()
                 for word in group
             )
-
+            # Normalisasi keyword hasil OCR
             normalized = (
                 line_text
                 .replace("0", "o")
@@ -229,7 +229,7 @@ class EkstraksiStruk:
                 .replace("|", "l")
             )
 
-            print("LINE:", normalized)
+            print(normalized)
 
             if any(e in normalized for e in exclude):
                 continue
@@ -242,8 +242,6 @@ class EkstraksiStruk:
                     val = self._parse_rupiah_to_int(word[1][0])
                     if val:
                         kandidat_total.append(val)
-
-        print("KANDIDAT:", kandidat_total)
 
         if not found_keyword:
             return 0
@@ -260,10 +258,6 @@ class EkstraksiStruk:
         if os.path.getsize(image_path) == 0:
             return {"error": "File gambar kosong"}
 
-        print("\n=== OCR IMAGE ===")
-        print(image_path)
-        print("SIZE:", os.path.getsize(image_path))
-
         try:
             result = self.ocr.ocr(image_path, cls=True)
         except Exception as e:
@@ -275,7 +269,6 @@ class EkstraksiStruk:
         raw_data = result[0]
         grouped = self._group_lines(raw_data)
 
-        print("\n=== GROUPED OCR ===")
         for idx, group in enumerate(grouped):
             texts = []
             for word in group:
@@ -283,7 +276,6 @@ class EkstraksiStruk:
             print(f"GROUP {idx + 1}:")
             print(texts)
 
-        print("\n=== RAW OCR TEXT ===")
         all_text_list = []
         for group in grouped:
             line_text = " ".join(
@@ -322,6 +314,4 @@ class EkstraksiStruk:
             "total": total
         }
 
-        print("\n=== HASIL OCR API ===")
-        print(hasil)
         return hasil
